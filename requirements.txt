@@ -1,0 +1,5 @@
+flask>=0.10
+future
+hidapi
+jsonschema
+tinydb
