@@ -3,10 +3,9 @@
 import functools
 import random
 import time
+import logging
 
-from chromarestserver import app
-
-logger = app.logger
+logger = logging.getLogger()
 
 REPORT_ID = 0x00
 
@@ -51,7 +50,7 @@ def usleep_range(min_usec, max_usec):
         max_usec (int): maximum number of microseconds to sleep
     """
     sec = random.randint(min_usec, max_usec) / 1000000.0
-    logger.info('sleeping for sec="%s"', sec)
+    logger.debug('sleeping for sec="%s"', sec)
     time.sleep(sec)
 
 
@@ -68,7 +67,7 @@ def clamp(n, smallest, largest):
         n (int): integer to inspect
         smallest (int): no smaller than this is allowed
         largest (int): no larger than this is allowed
-    
+
     Returns:
         int: the "clamped" input
     """
@@ -93,10 +92,10 @@ class RzEffect():
 
     def __init__(self, device, command, subcommand, tx_id=0x3F, args=None):
         """Information for the creation of a Razer Chroma USB wire command.
-        
+
         Args:
             device (:obj:`hid.device`): the connected USB device
-            command (int): the Razer protocol command as an integer 
+            command (int): the Razer protocol command as an integer
             subcommand (int): the Razer protocol subcommand as an integer
             tx_id (optional, int): the transaction id
             args (optional, list): any parameters needed for the `command`
@@ -121,6 +120,9 @@ class RzEffect():
 
         written = self.device.send_feature_report([REPORT_ID] + request)
         logger.debug('bytes written="%s"', written)
+        if written == -1:
+            raise IOError('Unable to write to USB device')
+
         if written != len(request)+1:
             raise ValueError('Invalid request: {}'.format(repr(self)))
 
@@ -136,7 +138,6 @@ class RzEffect():
 
         if response[0] != 2:
             logger.error('response is {}'.format(response[0]))
-
 
     def to_feature_report(self):
         """Turn this into a list of ints to send over the USB connection.

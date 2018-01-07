@@ -1,4 +1,4 @@
-flask>=0.10
+falcon
 future
 hidapi
 jsonschema

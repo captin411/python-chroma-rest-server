@@ -5,7 +5,7 @@ setup(
     packages=['chromarestserver'],
     include_package_data=True,
     install_requires=[
-        'flask',
+        'falcon',
         'future',
         'hidapi',
         'jsonschema',
