@@ -17,10 +17,10 @@ pip install -e .
 # run
 
 ```
-# run in dev mode
+# run with wsgiref
 sudo python run.py
 
-# or run with gunicorn
+# or run with gunicorn if you have that installed
 sudo gunicorn chromarestserver:app --bind 127.0.0.1:54235
 ```
 
@@ -28,7 +28,13 @@ sudo gunicorn chromarestserver:app --bind 127.0.0.1:54235
 
 ```
 curl -X PUT \
-  -d '{"event":"CHROMA_STATIC","param":{"color":255}}' \
+  -H 'Content-type: application/json'
+  -d '{"effect":"CHROMA_NONE"}' \
+  http://127.0.0.1:54235/1234/chromasdk/keyboard
+
+curl -X PUT \
+  -H 'Content-type: application/json'
+  -d '{"effect":"CHROMA_STATIC","param":{"color":255}}' \
   http://127.0.0.1:54235/1234/chromasdk/keyboard
 ```
 

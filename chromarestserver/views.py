@@ -64,6 +64,7 @@ class DeviceEngine():
         if self._keyboard is None:
             self.logger.debug('connecting to USB keyboard')
             for info in hid.enumerate():
+                self.logger.debug('inspecting keyboard info="%s"', info)
                 if (info['vendor_id'] == DeviceEngine.RAZER_VENDOR_ID
                         and info['usage'] == 6):
                     self.logger.info('found keyboard info="%s"', info)

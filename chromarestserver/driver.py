@@ -128,15 +128,15 @@ class RzEffect():
 
         usleep_range(900, 1000)
 
-        response = self.device.get_feature_report(REPORT_ID, len(request))
+        response = self.device.get_feature_report(REPORT_ID, written)
         logger.debug(
             'response="%s", length="%s"',
             ' '.join(['%0.2X' % x for x in response]), len(response))
 
-        if request[1:] != response[1:]:
+        if request[:90] != response[:90]:
             raise ValueError('Invalid response: {}'.format(repr(response)))
 
-        if response[0] != 2:
+        if response[-1] != 2:
             logger.error('response is {}'.format(response[0]))
 
     def to_feature_report(self):
