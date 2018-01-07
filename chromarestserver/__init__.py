@@ -1,16 +1,25 @@
 import falcon
 
-import chromarestserver.views as views
+from chromarestserver.resource import (
+    ChromaSdkResource,
+    SessionRootResource,
+    HeartBeatResource,
+    KeyboardResource
+)
+from chromarestserver.model import (
+    KeyboardModel,
+    SessionModel
+)
 
 app = falcon.API()
 
-usb_engine = views.DeviceEngine()
-session_engine = views.SessionEngine()
+usb_keyboard = KeyboardModel()
+session = SessionModel()
 
-chromasdk = views.ChromaSdkResource(session=session_engine)
-session = views.SessionRootResource(session=session_engine)
-heartbeat = views.HeartBeatResource(session=session_engine)
-keyboard = views.KeyboardResource(session=session_engine, usb=usb_engine)
+chromasdk = ChromaSdkResource(session=session)
+session = SessionRootResource(session=session)
+heartbeat = HeartBeatResource(session=session)
+keyboard = KeyboardResource(session=session, usb=usb_keyboard)
 
 app.add_route('/razer/chromasdk', chromasdk)
 app.add_route('/{session_id}/chromasdk', session)
