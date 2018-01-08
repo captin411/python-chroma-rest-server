@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+"""Falcon REST server resources."""
 import falcon
 import logging
 import time
@@ -6,16 +8,25 @@ import time
 class ChromaSdkResource():
 
     def __init__(self, session):
+        """Falcon resource for session management.
+
+        Args:
+            session (:obj:`chromarestserver.model.SessionModel`): The
+                model implementing how to handle session management
+                details.
+        """
         self.logger = logging.getLogger()
         self.session = session
 
     def on_get(self, req, resp):
+        """Emulate version information."""
         resp.media = {
             'version': '2.7'
         }
         resp.status = falcon.HTTP_200
 
     def on_post(self, req, resp):
+        """Emulate session creation."""
         data = req.media
 
         session = self.session.create(data)
@@ -36,26 +47,43 @@ class ChromaSdkResource():
 class HeartBeatResource():
 
     def __init__(self, session):
+        """Falcon resource for session heartbeat.
+
+        Args:
+            session (:obj:`chromarestserver.model.SessionModel`): The
+                model implementing how to handle session management
+                details.
+        """
         self.logger = logging.getLogger()
         self.session = session
 
     def on_post(self, req, resp, session_id):
+        """Emulate heartbeat for session keepalive."""
         resp.media = {
             'tick': time.time()
         }
         resp.status = falcon.HTTP_200
 
     def on_put(self, req, resp, session_id):
+        """Emulate heartbeat for session keepalive."""
         return self.on_post(req, resp, session_id)
 
 
 class SessionRootResource():
 
     def __init__(self, session):
+        """Falcon resource for instances of application sessions.
+
+        Args:
+            session (:obj:`chromarestserver.model.SessionModel`): The
+                model implementing how to handle session management
+                details.
+        """
         self.logger = logging.getLogger()
         self.session = session
 
     def on_get(self, req, resp, session_id):
+        """Emulate session info retrieval."""
         session = self.session.load(session_id)
         if session:
             resp.media = {
@@ -70,6 +98,7 @@ class SessionRootResource():
             resp.status = falcon.HTTP_404
 
     def on_delete(self, req, resp, session_id):
+        """Emulate session deletion."""
         self.session.delete(session_id)
         resp.media = {'result': 0}
         resp.status = 200
@@ -78,11 +107,20 @@ class SessionRootResource():
 class KeyboardResource():
 
     def __init__(self, session, usb):
+        """Falcon resource for keyboard effects
+
+        Args:
+            session (:obj:`chromarestserver.model.SessionModel`): Handler
+                for managing session managent.
+            usb (:obj:`chromarestserver.model.KeyboardModel`): Handler
+                for communicating effects to Razer Chroma USB keyboards.
+        """
         self.logger = logging.getLogger()
         self.session = session
         self.usb = usb
 
     def on_post(self, req, resp, session_id):
+        """Create a keyboard effect for later use."""
         data = req.media
 
         # coerce the may-be-a-list data structure into a list
@@ -115,4 +153,5 @@ class KeyboardResource():
                 }
 
     def on_put(self, req, resp, session_id):
+        """Execute a keyboard effect immediately."""
         return self.on_post(req, resp, session_id)

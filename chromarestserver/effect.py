@@ -1,5 +1,15 @@
-# thanks to the openrazer project for most of this information!
-# https://github.com/openrazer/openrazer/tree/master/driver
+"""Effects module
+
+This module contains constants, functions, and classes that are related
+to the assembly and communitation of Razer Chroma specific protocols
+over USB.
+
+For more protocol level information, see the openrazer drivers for
+additional inspiration.
+
+https://github.com/openrazer/openrazer/tree/master/driver
+"""
+
 import functools
 import logging
 

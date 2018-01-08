@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+"""Misc utilities and helpers module."""
 import logging
 import random
 import time
