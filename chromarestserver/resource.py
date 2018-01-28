@@ -4,6 +4,8 @@ import falcon
 import logging
 import time
 
+from chromarestserver.model import Color
+
 
 class ChromaSdkResource():
 
@@ -132,10 +134,20 @@ class KeyboardResource():
             params = item.get('param')
 
             try:
-                self.usb.effect(name, params)
-                resp.media = {
-                    'result': 0
-                }
+                self.logger.debug('effect name="%s", params="%s"',
+                                  name, params)
+                if 'CHROMA_NONE' == name:
+                    self.usb.set_matrix_none()
+                elif 'CHROMA_STATIC' == name:
+                    color = Color.from_long_bgr(params['color'])
+                    self.usb.set_matrix_static(color)
+                elif 'CHROMA_CUSTOM' == name:
+                    matrix = [
+                        list(map(Color.from_long_bgr, row))
+                        for row in params
+                    ]
+                    self.usb.set_custom_frame(matrix)
+                resp.media = {'result': 0}
                 resp.status = falcon.HTTP_200
             except IOError as exc:
                 # device must have disconnected

@@ -5,6 +5,7 @@ This module contains classes that hide the implementation details of
 Razer Chroma effect dispatch, USB device connectivity, and Chroma SDK session
 management.
 """
+import codecs
 import hid
 import logging
 import random
@@ -15,15 +16,17 @@ from tinydb import Query, TinyDB
 from chromarestserver.effect import (
     matrix_effect_custom_frame,
     matrix_effect_static,
+    matrix_effect_spectrum,
     matrix_effect_none,
+    matrix_effect_wave,
     set_custom_frame,
-    VARSTORE
+    set_led_effect
 )
 
 
-class Color():
+class RGB():
 
-    def __init__(self, r, g, b):
+    def __init__(self, r=0, g=0, b=0):
         """Create a color from three integers r, g, b
 
         Args:
@@ -37,56 +40,56 @@ class Color():
 
     @staticmethod
     def from_hex(x):
-        """Create `Color` object from a hex string.
+        """Create `RGB` object from a hex string.
 
         Args:
             x (str): hex string such as 'FF0000' or '#FF0000'
 
         Returns:
-            :obj:`chromarestserver.model.Color` instance
+            :obj:`chromarestserver.model.RGB` instance
 
         Example:
-            >>> Color.from_hex("#FF0000")
+            >>> RGB.from_hex("#FF0000")
         """
-        r, g, b = [ord(c) for c in x.lstrip('#').decode('hex')]
-        return Color(r, g, b)
+        r, g, b = [c for c in codecs.decode(x.lstrip('#'), 'hex')]
+        return RGB(r, g, b)
 
     @staticmethod
     def from_long(x):
-        """Create `Color` object from a long int (RGB ordered)
+        """Create `RGB` object from a long int (RGB ordered)
 
         Args:
             x (int): RGB ordered integer such as 65280
 
         Returns:
-            :obj:`chromarestserver.model.Color` instance
+            :obj:`chromarestserver.model.RGB` instance
 
         Example:
-            >>> Color.from_long(65280)
+            >>> RGB.from_long(65280)
         """
         x = int(x)
         r = (x >> 16) & 255
         g = (x >> 8) & 255
         b = x & 255
-        return Color(r, g, b)
+        return RGB(r, g, b)
 
     @staticmethod
     def from_long_bgr(x):
-        """Create `Color` object from a long int (BGR ordered)
+        """Create `RGB` object from a long int (BGR ordered)
 
         Args:
             x (int): BGR ordered integer such as 65280
 
         Returns:
-            :obj:`chromarestserver.model.Color` instance
+            :obj:`chromarestserver.model.RGB` instance
 
         Example:
-            >>> Color.from_long(65280)
+            >>> RGB.from_long(65280)
         """
         r = x & 255
         g = (x >> 8) & 255
         b = (x >> 16) & 255
-        return Color(r, g, b)
+        return RGB(r, g, b)
 
     def to_rgb(self):
         """Get a list of R, G, B integer values.
@@ -95,10 +98,47 @@ class Color():
             :obj:`list` of :obj:`int` with 3 elements; R, G, and B
 
         Example:
-            >>> Color.from_hex('#FF0000').to_rgb()
+            >>> RGB.from_hex('#FF0000').to_rgb()
             [255, 0, 0]
         """
         return [self.r, self.g, self.b]
+
+    def __repr__(self):
+        return 'RGB(r={}, g={}, b={})'.format(self.r, self.g, self.b)
+
+
+class Color(RGB):
+
+    RED = RGB.from_hex('FF0000')
+    ORANGE = RGB.from_hex('FFA500')
+    YELLOW = RGB.from_hex('FFFF00')
+    GREEN = RGB.from_hex('00FF00')
+    BLUE = RGB.from_hex('0000FF')
+    PURPLE = RGB.from_hex('A020F0')
+    WHITE = RGB.from_hex('FFFFFF')
+    BLACK = RGB.from_hex('000000')
+    CYAN = RGB.from_hex('00FFFF')
+    MAGENTA = RGB.from_hex('FF00FF')
+    BROWN = RGB.from_hex('A52A2A')
+    PINK = RGB.from_hex('FFC0CB')
+
+    def __init__(self, r=0, g=0, b=0):
+        """Create a color from three integers r, g, b
+
+        Args:
+            r (int): red value 0-255
+            g (int): green value 0-255
+            b (int): blue value 0-255
+        """
+        super(Color, self).__init__(r, g, b)
+
+    @staticmethod
+    def random():
+        return Color(
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255)
+        )
 
 
 class SessionModel():
@@ -236,39 +276,81 @@ class USBModel():
     def device(self, value):
         self._device = value
 
-    def effect(self, name, params=None):
-        """Run a Chroma effect on the selected device.
+    def set_custom_frame(self, matrix, store=True, force_custom_effect=True):
+        # TODO: enforce row/column lengths to  6 x 22 matrix
+        """Set a custom frame on the device with a matrix of Colors.
 
         Args:
-            name (str): The name of the effect to run.  One of:
-                CHROMA_NONE, CHROMA_STATIC, CHROMA_CUSTOM
-            params (:obj:`dict` or :obj:`list` or None):  Parameter
-                for the selected effect.  This value depends on the
-                effect name.  See the Razer Chroma SDK REST documentation
-                for description of the expected input format.
+            matrix (:obj:`list` of :obj:`list` of
+                  :obj:`chromarestserver.model.Color`): 6 x 22 matrix
+                  of Color objects.
         """
-        self.logger.info('effect name="%s", params="%s"', name, params)
-        device = self.device
-        if 'CHROMA_NONE' == name:
-            effect = matrix_effect_none(device)
-            effect.run()
-        elif 'CHROMA_STATIC' == name:
-            r, g, b = Color.from_long_bgr(params['color']).to_rgb()
-            effect = matrix_effect_static(device, r, g, b)
-            effect.run()
-        elif 'CHROMA_CUSTOM' == name:
-            rows = params
-            effect = matrix_effect_custom_frame(device, VARSTORE)
-            effect.run()
-            for idx, row in enumerate(rows):
+        self.logger.debug('set_custom_frame matrix="%s"', matrix)
 
-                rgbs = [
-                    x
-                    for col in row
-                    for x in Color.from_long_bgr(col).to_rgb()
-                ]
-                effect = set_custom_frame(device, idx, 0, len(row), rgbs=rgbs)
-                effect.run()
+        if force_custom_effect:
+            effect = matrix_effect_custom_frame(self.device, int(store))
+            effect.run()
+
+        for idx, row in enumerate(matrix):
+            rgbs = [
+                x
+                for color in row
+                for x in color.to_rgb()
+            ]
+            effect = set_custom_frame(self.device, idx, 0, len(row), rgbs=rgbs)
+            effect.run()
+
+    def set_custom_fill(self, color):
+        """Set a custom frame of all one color.
+
+        Args:
+            color (:obj:`chromarestserver.model.Color`): Color object
+        """
+        matrix = [
+            [color for i in range(22)]
+            for j in range(6)
+        ]
+        return self.set_custom_frame(matrix)
+
+    def set_led_effect(self, led, effect, persist=True):
+        """Set effect for led type. This does not work on individual keys."""
+        self.logger.debug('set_led_effect led="%s", effect="%s"', led, effect)
+        effect = set_led_effect(self.device, int(persist), led, effect)
+        effect.run()
+
+    def set_matrix_none(self):
+        """Clear out all LEDs for the device."""
+        self.logger.debug('set_matrix_none')
+        effect = matrix_effect_none(self.device)
+        effect.run()
+
+    def set_matrix_static(self, color):
+        """Set the entire device to one color.
+
+        Args:
+            color (:obj:`chromarestserver.model.Color`): Color object
+        """
+        self.logger.debug('set_matrix_static color="%s"', color)
+
+        r, g, b = color.to_rgb()
+        effect = matrix_effect_static(self.device, r, g, b)
+        effect.run()
+
+    def set_matrix_spectrum(self):
+        """Cycle through colors."""
+        self.logger.debug('set_matrix_spectrum')
+        effect = matrix_effect_spectrum(self.device)
+        effect.run()
+
+    def set_matrix_wave(self, left_to_right=True):
+        """Rainbow wave."""
+        self.logger.debug('set_matrix_wave left_to_right="%s"', left_to_right)
+        if left_to_right:
+            direction = 1
+        else:
+            direction = 2
+        effect = matrix_effect_wave(self.device, direction)
+        effect.run()
 
     def is_product_supported(self, product_id):
         """Abstract method that subclasses need to implement.
