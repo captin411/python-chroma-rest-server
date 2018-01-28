@@ -78,30 +78,38 @@ class Effect():
         """Send the command the the USB device."""
         self.logger.debug('Running command="%s"', repr(self))
 
-        request = self.to_feature_report()
-        self.logger.debug(
-            'request="%s", length="%s"',
-            ' '.join(['%0.2X' % x for x in request]), len(request))
+        response_mismatch_retries = 4
+        while response_mismatch_retries >= 0:
+            request = self.to_feature_report()
+            self.logger.debug(
+                'request="%s", length="%s"',
+                ' '.join(['%0.2X' % x for x in request]), len(request))
 
-        written = self.device.send_feature_report([REPORT_ID] + request)
-        self.logger.debug('bytes written="%s"', written)
-        if written == -1:
-            raise IOError('Unable to write to USB device')
+            written = self.device.send_feature_report([REPORT_ID] + request)
+            self.logger.debug('bytes written="%s"', written)
+            if written == -1:
+                raise IOError('Unable to write to USB device')
 
-        if written != len(request)+1:
-            raise ValueError('Invalid request: {}'.format(repr(self)))
+            if written != len(request)+1:
+                raise ValueError('Write error: {}'.format(repr(self)))
 
-        usleep_range(900, 1000)
+            usleep_range(900, 1000)
 
-        response = self.device.get_feature_report(REPORT_ID, written)
-        self.logger.debug(
-            'response="%s", length="%s"',
-            ' '.join(['%0.2X' % x for x in response]), len(response))
+            response = self.device.get_feature_report(REPORT_ID, 90)
 
-        if request[:90] != response[:90]:
-            raise ValueError('Invalid response: {}'.format(repr(response)))
+            self.logger.debug(
+                'response="%s", length="%s"',
+                ' '.join(['%0.2X' % x for x in response]), len(response))
 
-        if response[-1] != 2:
+            if request[1:87] != response[1:87]:
+                response_mismatch_retries -= 1
+                if not response_mismatch_retries:
+                    raise ValueError('Invalid response: {}'.format(repr(response)))
+            else:
+                response_mismatch_retries = -1 
+
+        if response[0] != 2:
+            raise ValueError('Error response: {}'.format(repr(response)))
             self.logger.error('response is {}'.format(response[0]))
 
     def to_feature_report(self):
